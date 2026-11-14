@@ -1,0 +1,25 @@
+[Unit]
+Description=Toyama Kosen bus location Discord bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/toyamakosen-bus-bot
+EnvironmentFile=/srv/toyamakosen-bus-bot/.env
+ExecStart=/srv/toyamakosen-bus-bot/result/bin/toyamakosen-bus-bot
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+UMask=0002
+
+[Install]
+WantedBy=multi-user.target
