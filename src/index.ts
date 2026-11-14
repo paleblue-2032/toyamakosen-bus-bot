@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { Client, GatewayIntentBits, Events, SlashCommandBuilder } from 'discord.js';
 import { errorMessage, logger } from './logger.js';
 import { getKosenStatus } from './service.js';
@@ -8,20 +6,12 @@ const command = new SlashCommandBuilder()
   .setName('kosen')
   .setDescription('国立高専線・高専方面のバスの現在地を表示します');
 
-function loadEnvFile(): void {
-  if (process.env.DISCORD_TOKEN?.trim()) return;
-  const envFile = process.env.BOT_ENV_FILE
-    ? path.resolve(process.env.BOT_ENV_FILE)
-    : path.resolve(process.cwd(), '.env');
-  if (existsSync(envFile)) process.loadEnvFile(envFile);
-}
-
 async function main(): Promise<void> {
-  loadEnvFile();
-
   const token = process.env.DISCORD_TOKEN?.trim();
   if (!token) {
-    logger.error('DISCORD_TOKEN が設定されていません。.env.example を参照してください。');
+    logger.error(
+      'DISCORD_TOKEN が設定されていません。systemd では EnvironmentFile、開発時は node --env-file=.env で渡してください。',
+    );
     process.exit(1);
   }
 
