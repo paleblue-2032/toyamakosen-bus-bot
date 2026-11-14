@@ -45,6 +45,10 @@ as_owner() {
 case "$action" in
   deploy)
     as_owner git -C "$dir" pull --ff-only
+    if ! cmp -s "$dir/deploy/botctl" /usr/local/sbin/botctl; then
+      install -o root -g root -m 755 "$dir/deploy/botctl" /usr/local/sbin/botctl
+      echo "botctl を更新しました"
+    fi
     as_owner nix build "$dir#default" -o "$dir/result" --print-build-logs
     systemctl restart "$unit"
     systemctl is-active "$unit"
