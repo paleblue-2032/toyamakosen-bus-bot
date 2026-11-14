@@ -8,7 +8,7 @@ usage() {
 usage: botctl <command> <bot>
 
   bot:     commandcode | kosen
-  command: deploy | restart | status | logs
+  command: deploy | restart | status | logs | enable | fix-env
 EOF
   exit 2
 }
@@ -58,6 +58,20 @@ case "$action" in
     ;;
   logs)
     journalctl -u "$unit" -n 100 --no-pager
+    ;;
+  enable)
+    systemctl enable "$unit"
+    systemctl restart "$unit"
+    systemctl is-active "$unit"
+    ;;
+  fix-env)
+    if [ ! -f "$dir/.env" ]; then
+      echo "not found: $dir/.env" >&2
+      exit 1
+    fi
+    chown root:root "$dir/.env"
+    chmod 600 "$dir/.env"
+    stat -c '%U:%G %a %n' "$dir/.env"
     ;;
   *)
     usage
