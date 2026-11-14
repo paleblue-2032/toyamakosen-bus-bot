@@ -41,12 +41,19 @@ Discord で `/kosen` を実行するだけ。
 
 ## 環境変数
 
-`.env.example` を参照。
+`.env.example` を参照。`.env` は git 管理外（`.gitignore` 済み）。
 
 | 変数 | 内容 |
 | --- | --- |
 | `DISCORD_TOKEN` | Bot トークン（必須） |
 | `DISCORD_GUILD_ID` | コマンドを登録するギルド ID（任意）。未指定ならグローバル登録 |
+
+本番は systemd の `EnvironmentFile` から渡す。開発時は `npm run dev` / `npm start` が `--env-file-if-exists=.env` で読む。
+
+```bash
+cp .env.example .env
+# DISCORD_TOKEN を記入
+```
 
 ## 開発
 
@@ -59,6 +66,8 @@ npm test
 npm run typecheck
 npm run build
 ```
+
+`NODE_ENV=production` だと dev 依存が入らないので `--include=dev` を付ける。
 
 実データでの確認:
 
