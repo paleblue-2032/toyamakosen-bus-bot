@@ -19,6 +19,25 @@ function formatClock(date: Date): string {
   }).format(date);
 }
 
+function jstMinutes(date: Date): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+  return hour * 60 + minute;
+}
+
+function parseClock(value: string | null): number | null {
+  if (!value) return null;
+  const matched = /^(\d{1,2}):(\d{2})/.exec(value.trim());
+  if (!matched) return null;
+  return Number(matched[1]) * 60 + Number(matched[2]);
+}
+
 function mapUrl(bus: LiveBus): string {
   return `https://www.google.com/maps?q=${bus.lat},${bus.lon}`;
 }
@@ -87,7 +106,7 @@ function formatRunning(snapshot: BusSnapshot): string {
   return lines.join('\n');
 }
 
-function formatWaiting(trip: TripInfo | null, stopNames: StopNames): string {
+function formatWaiting(trip: TripInfo | null, stopNames: StopNames, now: Date): string {
   if (!trip) return 'いま高専方面を走っているバスはいません。';
 
   if (trip.suspended) {
@@ -96,17 +115,25 @@ function formatWaiting(trip: TripInfo | null, stopNames: StopNames): string {
 
   const lines = ['いま高専方面を走っているバスはいません。'];
 
-  if (trip.startTime) {
+  const departure = parseClock(trip.startTime);
+  const nowMinutes = jstMinutes(now);
+  const isUpcoming = departure !== null && departure > nowMinutes;
+  const finished = trip.status?.includes('終了') === true || (departure !== null && !isUpcoming);
+
+  if (trip.startTime && !finished) {
     const from = trip.startStopName ?? '始発';
     const headsign = trip.headsign ? `（${trip.headsign}）` : '';
     lines.push(`次の便: ${from} ${trip.startTime}発${headsign}`);
-  }
-
-  const arrival = arrivalLine(trip, stopNames);
-  if (arrival) lines.push(arrival);
-
-  if (!trip.startTime && !arrival) {
-    lines.push('運行時間外か、本日の運行が終了したようです。');
+    const arrival = arrivalLine(trip, stopNames);
+    if (arrival) lines.push(arrival);
+  } else if (trip.startTime) {
+    const from = trip.startStopName ?? '始発';
+    lines.push(`最終便（${from} ${trip.startTime}発）はすでに出発しています。`);
+    lines.push('本日の運行は終了しました。');
+  } else {
+    const arrival = arrivalLine(trip, stopNames);
+    if (arrival) lines.push(arrival);
+    else lines.push('運行時間外か、本日の運行が終了したようです。');
   }
 
   return lines.join('\n');
@@ -121,7 +148,7 @@ export function formatStatus(
   const body =
     snapshots.length > 0
       ? snapshots.map(formatRunning).join('\n\n')
-      : formatWaiting(fallbackTrip, stopNames);
+      : formatWaiting(fallbackTrip, stopNames, now);
 
   const updated = snapshots[0]?.trip.updateTime ?? fallbackTrip?.updateTime ?? formatClock(now);
   const footer = `-# ${updated} 時点 / とやまロケーションシステム`;

@@ -77,6 +77,27 @@ describe('formatStatus', () => {
     assert.match(text, /次の便: 富山駅前 20:10発/);
   });
 
+  it('出発時刻を過ぎた便を「次の便」と呼ばない', () => {
+    // now は JST 20:05。20:10 発は未来なので「次の便」。
+    const before = makeKosenTrip({ status: '運行待ち', startTime: '20:10' });
+    assert.match(formatStatus([], before, stopNames, now), /次の便/);
+
+    // JST 20:20 から見ると 20:10 発は過去。
+    const after = new Date('2026-11-14T11:20:00Z');
+    const text = formatStatus([], before, stopNames, after);
+    assert.doesNotMatch(text, /次の便/);
+    assert.match(text, /本日の運行は終了しました/);
+  });
+
+  it('運行終了のステータスを尊重する', () => {
+    const trip = makeKosenTrip({ status: '運行終了', startTime: '22:10' });
+
+    const text = formatStatus([], trip, stopNames, now);
+
+    assert.doesNotMatch(text, /次の便/);
+    assert.match(text, /本日の運行は終了しました/);
+  });
+
   it('運休を明示する', () => {
     const trip = makeKosenTrip({ suspended: true, startTime: null });
 
