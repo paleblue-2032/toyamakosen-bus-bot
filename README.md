@@ -68,16 +68,54 @@ nix develop --command npx tsx scripts/live.ts
 
 ## デプロイ
 
-```bash
-nix build .# --print-build-logs
-```
-
-systemd unit は `deploy/toyamakosen-bus-bot.service`。
+kanon-server に相乗りする。既存の `commandcode-discordbot` には触らない。
 
 ```bash
-sudo systemctl restart toyamakosen-bus-bot
-sudo journalctl -u toyamakosen-bus-bot -f
+sudo bash deploy/install-server.sh
+sudo nano /srv/toyamakosen-bus-bot/.env   # DISCORD_TOKEN を記入
+sudo botctl restart kosen
+sudo botctl logs kosen
 ```
+
+`install-server.sh` は冪等。既存の `.env` は上書きしない。
+
+### 既存サービスへの影響を避ける設定
+
+`deploy/toyamakosen-bus-bot.service` で次を効かせている。
+
+| 設定 | 目的 |
+| --- | --- |
+| `DynamicUser=yes` | 専用の使い捨てユーザーで動かし、`cmdbot` と権限を共有しない |
+| `MemoryHigh=160M` / `MemoryMax=256M` | 8GB のうち上限を固定し、既存 bot を圧迫しない |
+| `Nice=10` / `CPUSchedulingPolicy=batch` | CPU 競合時に既存サービスを優先 |
+| `ProtectSystem=strict` + 書き込み先なし | ファイルを一切書けない |
+| `CapabilityBoundingSet=` / `NoNewPrivileges` | 特権昇格の余地を消す |
+| `ProtectHome` / `ProtectProc=invisible` | 他ユーザーのホームとプロセスを見せない |
+| `Restart=always` + `RestartSec=5` | 落ちても既存に影響しない範囲で自動復帰 |
+
+bot 自身は状態を持たない（セッションも DB も無い）ので、書き込み権限は不要。
+
+## サーバー管理
+
+`botctl` に操作を一本化している。
+
+```bash
+sudo botctl deploy commandcode   # pull + nix build + restart
+sudo botctl restart kosen
+sudo botctl status kosen
+sudo botctl logs commandcode
+```
+
+`/etc/sudoers.d/90-cmd-maintenance` は次の 1 行だけ。`env` / `bash` / `nix` / `git` を個別に NOPASSWD で開けると実質 root になるため、その形はやめた。
+
+```
+paleblue_2032 ALL=(root) NOPASSWD: /usr/local/sbin/botctl
+```
+
+- `botctl` は root 所有 755。引数は `deploy|restart|status|logs` と `commandcode|kosen` の固定リストのみ。
+- `git` / `nix` はリポジトリの所有者として実行するので、root 所有ファイルはできない。
+- 全権限 sudo は従来どおりパスワード必須。
+
 
 ## 構成
 

@@ -1,25 +1,50 @@
 [Unit]
 Description=Toyama Kosen bus location Discord bot
+Documentation=https://github.com/paleblue-2032/toyamakosen-bus-bot
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
+DynamicUser=yes
 WorkingDirectory=/srv/toyamakosen-bus-bot
 EnvironmentFile=/srv/toyamakosen-bus-bot/.env
 ExecStart=/srv/toyamakosen-bus-bot/result/bin/toyamakosen-bus-bot
 Restart=always
 RestartSec=5
+
+# 既存サービスに影響を与えないための上限
+Nice=10
+CPUSchedulingPolicy=batch
+MemoryHigh=160M
+MemoryMax=256M
+TasksMax=128
+OOMPolicy=stop
+
+# サンドボックス（書き込み先を持たない）
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
+ProtectHome=true
+ProtectProc=invisible
+ProcSubset=pid
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
 RestrictSUIDSGID=true
-LockPersonality=true
 RestrictRealtime=true
-UMask=0002
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# サーバー上の bot を操作する唯一の入口。
+# root 所有・755 で置き、sudoers からはこのスクリプトだけを NOPASSWD にする。
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: botctl <command> <bot>
+
+  bot:     commandcode | kosen
+  command: deploy | restart | status | logs
+EOF
+  exit 2
+}
+
+action="${1:-}"
+name="${2:-}"
+
+case "$name" in
+  commandcode)
+    unit="commandcode-discordbot"
+    dir="/srv/commandcode-discordbot"
+    ;;
+  kosen)
+    unit="toyamakosen-bus-bot"
+    dir="/srv/toyamakosen-bus-bot"
+    ;;
+  *)
+    usage
+    ;;
+esac
+
+if [ ! -d "$dir" ]; then
+  echo "not found: $dir" >&2
+  exit 1
+fi
+
+# リポジトリの所有者で git / nix を実行する（root 所有ファイルを作らない）
+owner="$(stat -c %U "$dir")"
+owner_home="$(getent passwd "$owner" | cut -d: -f6)"
+as_owner() {
+  runuser -u "$owner" -- env HOME="$owner_home" PATH=/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin "$@"
+}
+
+case "$action" in
+  deploy)
+    as_owner git -C "$dir" pull --ff-only
+    as_owner nix build "$dir#default" -o "$dir/result" --print-build-logs
+    systemctl restart "$unit"
+    systemctl is-active "$unit"
+    ;;
+  restart)
+    systemctl restart "$unit"
+    systemctl is-active "$unit"
+    ;;
+  status)
+    systemctl status "$unit" --no-pager
+    ;;
+  logs)
+    journalctl -u "$unit" -n 100 --no-pager
+    ;;
+  *)
+    usage
+    ;;
+esac
