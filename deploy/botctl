@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# サーバー上の bot を操作する唯一の入口。
+# サーバー上のサービスを操作する唯一の入口。
 # root 所有・755 で置き、sudoers からはこのスクリプトだけを NOPASSWD にする。
 set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-usage: botctl <command> <bot>
+usage: botctl <command> <service>
 
-  bot:     commandcode | kosen
-  command: deploy | restart | status | logs | enable | fix-env
+  service: commandcode | kosen | fileshare
+  command: deploy | restart | status | logs | follow | enable | fix-env
 EOF
   exit 2
 }
@@ -24,6 +24,10 @@ case "$name" in
   kosen)
     unit="toyamakosen-bus-bot"
     dir="/srv/toyamakosen-bus-bot"
+    ;;
+  fileshare)
+    unit="fileshare"
+    dir="/srv/fileshare"
     ;;
   *)
     usage
@@ -62,6 +66,9 @@ case "$action" in
     ;;
   logs)
     journalctl -u "$unit" -n 100 --no-pager
+    ;;
+  follow)
+    journalctl -u "$unit" -n 50 -f
     ;;
   enable)
     systemctl enable "$unit"
